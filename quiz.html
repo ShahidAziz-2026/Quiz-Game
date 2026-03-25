@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- ============================================================
+       QUIZ GAME — Single-file edition
+       Author  : You!
+       Hosted  : GitHub Pages
+       License : MIT — do whatever you like with this
+  ============================================================ -->
+
+  <title>Quiz Game</title>
+
+  <!-- Open Graph tags so Facebook shows a nice preview when shared -->
+  <meta property="og:title"       content="Quiz Game — 10 Questions!" />
+  <meta property="og:description" content="Science, history, geography &amp; more. How many can you get right?" />
+  <meta property="og:type"        content="website" />
+  <!-- Replace the URL below with your actual GitHub Pages URL -->
+  <!-- <meta property="og:url"         content="https://YOUR-USERNAME.github.io/quiz-game/" /> -->
+  <!-- Optional: add a preview image (1200×630 px works best on Facebook)
+  <meta property="og:image"       content="https://YOUR-USERNAME.github.io/quiz-game/preview.png" /> -->
+
+  <!-- Google Fonts — "Syne" display + "DM Sans" body -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- ============================================================
+       STYLES
+  ============================================================ -->
+  <style>
+    /* ---- CSS Custom Properties (design tokens) ---- */
+    :root {
+      --bg:        #0d0d0d;       /* page background             */
+      --surface:   #181818;       /* card background             */
+      --border:    #2a2a2a;       /* subtle borders              */
+      --accent:    #c8f135;       /* lime-green accent           */
+      --accent-dk: #9bbf1a;       /* darker shade of accent      */
+      --text:      #f0f0f0;       /* primary text                */
+      --muted:     #888;          /* secondary / helper text     */
+      --correct:   #2ecc71;       /* right-answer highlight      */
+      --wrong:     #e74c3c;       /* wrong-answer highlight      */
+      --radius:    14px;          /* corner radius for cards     */
+      --font-head: 'Syne',    sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --transition: 0.2s ease;
+    }
+
+    /* ---- Reset & Base ---- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* subtle dot-grid pattern for texture */
+      background-image: radial-gradient(circle, #2a2a2a 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    /* ---- Main quiz card ---- */
+    #quiz-card {
+      width: min(640px, 95vw);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2.5rem 2.5rem 2rem;
+      /* subtle glow from below — the "one memorable thing" */
+      box-shadow: 0 0 80px -20px var(--accent);
+    }
+
+    /* ---- Header: logo + score ---- */
+    #quiz-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    #logo {
+      font-family: var(--font-head);
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+    }
+
+    #score-display {
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    #score-display span {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    /* ---- Progress bar ---- */
+    #progress-track {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-bottom: 2rem;
+      overflow: hidden;
+    }
+
+    #progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ---- Question counter & text ---- */
+    #question-counter {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+    }
+
+    #question-text {
+      font-family: var(--font-head);
+      font-size: clamp(1.2rem, 3vw, 1.55rem);
+      font-weight: 700;
+      line-height: 1.35;
+      color: var(--text);
+      margin-bottom: 1.75rem;
+      min-height: 4rem; /* prevents layout jump between short/long questions */
+    }
+
+    /* ---- Answer option buttons ---- */
+    #options-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .option-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.9rem 1.2rem;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      font-weight: 400;
+      text-align: left;
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition), color var(--transition), transform var(--transition);
+      /* show A B C D labels */
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* The A / B / C / D label inside each button */
+    .option-btn .letter {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      background: var(--border);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+      flex-shrink: 0;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    .option-btn:hover:not(:disabled) {
+      background: #212121;
+      border-color: #444;
+      transform: translateX(3px);
+    }
+
+    .option-btn:hover:not(:disabled) .letter {
+      background: var(--accent);
+      color: #000;
+    }
+
+    /* State: correct answer */
+    .option-btn.correct {
+      background: rgba(46, 204, 113, 0.12);
+      border-color: var(--correct);
+      color: var(--correct);
+    }
+    .option-btn.correct .letter {
+      background: var(--correct);
+      color: #fff;
+    }
+
+    /* State: wrong answer chosen */
+    .option-btn.wrong {
+      background: rgba(231, 76, 60, 0.1);
+      border-color: var(--wrong);
+      color: var(--wrong);
+    }
+    .option-btn.wrong .letter {
+      background: var(--wrong);
+      color: #fff;
+    }
+
+    /* Disable pointer events once answered */
+    .option-btn:disabled { cursor: default; transform: none; }
+
+    /* ---- Explanation text (shown after answering) ---- */
+    #feedback {
+      margin-top: 1.2rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      min-height: 1.2rem;
+      line-height: 1.6;
+    }
+
+    /* ---- Next / See Results button ---- */
+    #next-btn {
+      margin-top: 1.5rem;
+      padding: 0.75rem 1.8rem;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: none; /* hidden until user answers */
+      transition: background var(--transition), transform var(--transition);
+    }
+
+    #next-btn:hover { background: var(--accent-dk); transform: translateY(-1px); }
+    #next-btn:active { transform: translateY(0); }
+
+    /* ---- Results screen ---- */
+    #results-screen {
+      display: none;
+      text-align: center;
+      padding: 1rem 0;
+    }
+
+    #results-screen .big-score {
+      font-family: var(--font-head);
+      font-size: clamp(3.5rem, 12vw, 5.5rem);
+      font-weight: 800;
+      line-height: 1;
+      color: var(--accent);
+      /* slight glow on the number */
+      text-shadow: 0 0 40px rgba(200, 241, 53, 0.35);
+    }
+
+    #results-screen .out-of {
+      font-size: 1rem;
+      color: var(--muted);
+      margin: 0.4rem 0 1.5rem;
+    }
+
+    #results-screen .result-msg {
+      font-family: var(--font-head);
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    #results-screen .result-sub {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+    }
+
+    #play-again-btn {
+      padding: 0.75rem 2.2rem;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background var(--transition), transform var(--transition);
+    }
+
+    #play-again-btn:hover { background: var(--accent-dk); transform: translateY(-1px); }
+
+    /* ---- Simple fade-in animation for question transitions ---- */
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-in {
+      animation: fadeSlideIn 0.3s ease forwards;
+    }
+
+    /* ---- Responsive: tighten padding on small screens ---- */
+    @media (max-width: 480px) {
+      #quiz-card { padding: 1.75rem 1.25rem 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       HTML STRUCTURE
+  ============================================================ -->
+  <div id="quiz-card">
+
+    <!-- Header row: branding + live score -->
+    <div id="quiz-header">
+      <div id="logo">QUIZZY</div>
+      <div id="score-display">Score: <span id="score-value">0</span></div>
+    </div>
+
+    <!-- Thin progress bar that fills as questions are answered -->
+    <div id="progress-track">
+      <div id="progress-fill"></div>
+    </div>
+
+    <!-- ---- QUESTION PANEL ---- -->
+    <div id="question-panel">
+      <div id="question-counter">Question 1 of 10</div>
+      <div id="question-text"></div>
+      <div id="options-container"></div>
+      <div id="feedback"></div>
+      <button id="next-btn">Next →</button>
+    </div>
+
+    <!-- ---- RESULTS PANEL (hidden until quiz is finished) ---- -->
+    <div id="results-screen">
+      <div class="big-score" id="final-score">0</div>
+      <div class="out-of">out of 10</div>
+      <div class="result-msg" id="result-msg"></div>
+      <div class="result-sub" id="result-sub"></div>
+      <button id="play-again-btn">Play again</button>
+    </div>
+
+  </div><!-- /#quiz-card -->
+
+  <!-- ============================================================
+       JAVASCRIPT
+  ============================================================ -->
+  <script>
+    /* ============================================================
+       QUESTION BANK
+       Each object has:
+         q    — the question string
+         opts — array of 4 answer strings
+         ans  — index (0–3) of the correct answer in opts
+         exp  — short explanation shown after answering
+    ============================================================ */
+    const questions = [
+      {
+        q:    "What is the chemical symbol for gold?",
+        opts: ["Go", "Gd", "Au", "Ag"],
+        ans:  2,
+        exp:  "'Au' comes from the Latin word aurum."
+      },
+      {
+        q:    "How many sides does a heptagon have?",
+        opts: ["5", "6", "7", "8"],
+        ans:  2,
+        exp:  "Hepta- is Greek for seven."
+      },
+      {
+        q:    "Which planet is closest to the Sun?",
+        opts: ["Venus", "Earth", "Mars", "Mercury"],
+        ans:  3,
+        exp:  "Mercury is the innermost planet of our solar system."
+      },
+      {
+        q:    "Who wrote 'Pride and Prejudice'?",
+        opts: ["Charlotte Brontë", "Jane Austen", "George Eliot", "Mary Shelley"],
+        ans:  1,
+        exp:  "Jane Austen published it in January 1813."
+      },
+      {
+        q:    "Approximately how fast does light travel (km/s)?",
+        opts: ["100,000", "300,000", "500,000", "1,000,000"],
+        ans:  1,
+        exp:  "The exact figure is 299,792 km/s in a vacuum."
+      },
+      {
+        q:    "Which element has atomic number 1?",
+        opts: ["Helium", "Oxygen", "Carbon", "Hydrogen"],
+        ans:  3,
+        exp:  "Hydrogen is the lightest and most abundant element in the universe."
+      },
+      {
+        q:    "In which year did the Berlin Wall fall?",
+        opts: ["1985", "1989", "1991", "1993"],
+        ans:  1,
+        exp:  "The Berlin Wall fell on 9 November 1989."
+      },
+      {
+        q:    "What is the largest ocean on Earth?",
+        opts: ["Atlantic", "Indian", "Arctic", "Pacific"],
+        ans:  3,
+        exp:  "The Pacific covers over 165 million km² — more than all land combined."
+      },
+      {
+        q:    "How many bones are in the adult human body?",
+        opts: ["196", "206", "216", "226"],
+        ans:  1,
+        exp:  "Adults have 206 bones; babies are born with around 270."
+      },
+      {
+        q:    "Which country is credited with inventing the modern printing press?",
+        opts: ["China", "Italy", "Germany", "France"],
+        ans:  2,
+        exp:  "Johannes Gutenberg built his movable-type press in Germany around 1440."
+      }
+    ];
+
+    /* ============================================================
+       LETTER LABELS  — maps option index to A / B / C / D
+    ============================================================ */
+    const LETTERS = ["A", "B", "C", "D"];
+
+    /* ============================================================
+       STATE  — tracks where the player is in the quiz
+    ============================================================ */
+    let currentIndex = 0;   // which question we're on (0–9)
+    let score        = 0;   // number of correct answers
+    let hasAnswered  = false; // prevents double-clicking
+
+    /* ============================================================
+       DOM REFERENCES  — grab elements once, reuse throughout
+    ============================================================ */
+    const progressFill    = document.getElementById("progress-fill");
+    const questionCounter = document.getElementById("question-counter");
+    const questionText    = document.getElementById("question-text");
+    const optionsContainer= document.getElementById("options-container");
+    const feedbackEl      = document.getElementById("feedback");
+    const nextBtn         = document.getElementById("next-btn");
+    const scoreValue      = document.getElementById("score-value");
+    const questionPanel   = document.getElementById("question-panel");
+    const resultsScreen   = document.getElementById("results-screen");
+    const finalScore      = document.getElementById("final-score");
+    const resultMsg       = document.getElementById("result-msg");
+    const resultSub       = document.getElementById("result-sub");
+    const playAgainBtn    = document.getElementById("play-again-btn");
+
+    /* ============================================================
+       renderQuestion()
+       Draws the current question and its four answer buttons.
+    ============================================================ */
+    function renderQuestion() {
+      const q = questions[currentIndex];
+
+      /* Update progress bar width */
+      progressFill.style.width = ((currentIndex / questions.length) * 100) + "%";
+
+      /* Update counter label */
+      questionCounter.textContent = "Question " + (currentIndex + 1) + " of " + questions.length;
+
+      /* Set question text and trigger fade-in */
+      questionText.textContent = q.q;
+      questionText.classList.remove("fade-in");
+      void questionText.offsetWidth; // force reflow to restart animation
+      questionText.classList.add("fade-in");
+
+      /* Clear previous feedback and hide Next button */
+      feedbackEl.textContent = "";
+      nextBtn.style.display  = "none";
+      hasAnswered            = false;
+
+      /* Build option buttons dynamically */
+      optionsContainer.innerHTML = ""; // clear old buttons
+
+      q.opts.forEach(function(optionText, index) {
+        /* Create the button */
+        const btn = document.createElement("button");
+        btn.className = "option-btn fade-in";
+        btn.style.animationDelay = (index * 0.06) + "s"; // staggered entrance
+
+        /* Letter badge (A, B, C, D) */
+        const letterSpan = document.createElement("span");
+        letterSpan.className = "letter";
+        letterSpan.textContent = LETTERS[index];
+
+        /* Answer text node */
+        const textNode = document.createTextNode(optionText);
+
+        btn.appendChild(letterSpan);
+        btn.appendChild(textNode);
+
+        /* Click handler — evaluate the chosen answer */
+        btn.addEventListener("click", function() {
+          handleAnswer(index);
+        });
+
+        optionsContainer.appendChild(btn);
+      });
+    }
+
+    /* ============================================================
+       handleAnswer(chosenIndex)
+       Called when a player clicks an answer button.
+       Locks in the choice, colours buttons, shows feedback.
+    ============================================================ */
+    function handleAnswer(chosenIndex) {
+      /* Ignore clicks if already answered (prevents double-submit) */
+      if (hasAnswered) return;
+      hasAnswered = true;
+
+      const q       = questions[currentIndex];
+      const buttons = optionsContainer.querySelectorAll(".option-btn");
+
+      /* Disable all buttons so nothing else can be clicked */
+      buttons.forEach(function(btn) { btn.disabled = true; });
+
+      if (chosenIndex === q.ans) {
+        /* ---- CORRECT ---- */
+        buttons[chosenIndex].classList.add("correct");
+        feedbackEl.textContent = "✓ Correct! " + q.exp;
+        score++;
+        scoreValue.textContent = score;
+      } else {
+        /* ---- WRONG ---- */
+        buttons[chosenIndex].classList.add("wrong");       // highlight chosen (red)
+        buttons[q.ans].classList.add("correct");           // reveal correct (green)
+        feedbackEl.textContent = "✗ Not quite. " + q.exp;
+      }
+
+      /* Show the Next / See Results button */
+      nextBtn.style.display  = "inline-block";
+      nextBtn.textContent    = currentIndex < questions.length - 1 ? "Next →" : "See results →";
+    }
+
+    /* ============================================================
+       showResults()
+       Hides the question panel and displays the final score screen.
+    ============================================================ */
+    function showResults() {
+      /* Full progress bar on completion */
+      progressFill.style.width = "100%";
+
+      questionPanel.style.display  = "none";
+      resultsScreen.style.display  = "block";
+      resultsScreen.classList.add("fade-in");
+
+      finalScore.textContent = score;
+
+      /* Pick a message based on percentage */
+      const pct = score / questions.length;
+      if (pct === 1) {
+        resultMsg.textContent = "Perfect score!";
+        resultSub.textContent = "Absolutely flawless — you know your stuff.";
+      } else if (pct >= 0.8) {
+        resultMsg.textContent = "Impressive!";
+        resultSub.textContent = "You really know your stuff — just a slip or two.";
+      } else if (pct >= 0.6) {
+        resultMsg.textContent = "Solid effort!";
+        resultSub.textContent = "Above average — a little more practice and you'll ace it.";
+      } else if (pct >= 0.4) {
+        resultMsg.textContent = "Keep going!";
+        resultSub.textContent = "Not bad — knowledge builds with every attempt.";
+      } else {
+        resultMsg.textContent = "Tough round.";
+        resultSub.textContent = "Give it another go — you'll be surprised how much you pick up.";
+      }
+    }
+
+    /* ============================================================
+       resetQuiz()
+       Resets all state and re-renders the first question.
+    ============================================================ */
+    function resetQuiz() {
+      currentIndex = 0;
+      score        = 0;
+      hasAnswered  = false;
+      scoreValue.textContent = "0";
+
+      /* Swap panels back */
+      resultsScreen.style.display  = "none";
+      questionPanel.style.display  = "block";
+
+      renderQuestion();
+    }
+
+    /* ============================================================
+       EVENT LISTENERS
+    ============================================================ */
+
+    /* "Next →" / "See results →" button */
+    nextBtn.addEventListener("click", function() {
+      currentIndex++;
+      if (currentIndex < questions.length) {
+        renderQuestion();
+      } else {
+        showResults();
+      }
+    });
+
+    /* "Play again" button on results screen */
+    playAgainBtn.addEventListener("click", resetQuiz);
+
+    /* ============================================================
+       INIT — kick off the quiz on page load
+    ============================================================ */
+    renderQuestion();
+  </script>
+
+</body>
+</html>
